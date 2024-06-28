@@ -4,6 +4,13 @@ import pydeck as pdk
 import os
 import requests
 
+def fetch_engines():
+    response = requests.get("https://ttsvoices.acecentre.net/engines")
+    engines = response.json()
+    # Add "All" and "Other" options
+    engines = ["All"] + engines
+    return engines
+
 
 # Function to get voices from API
 def get_voices(engine=None, lang_code=None, software=None):
@@ -18,8 +25,8 @@ def get_voices(engine=None, lang_code=None, software=None):
     is_development = os.getenv('DEVELOPMENT') == 'True'
     try:
         if is_development:
-            response = requests.get("http://127.0.0.1:8000/voices", params=params)
-            #response = requests.get("https://ttsvoices.acecentre.net/voices", params=params)
+            #response = requests.get("http://127.0.0.1:8000/voices", params=params)
+            response = requests.get("https://ttsvoices.acecentre.net/voices", params=params)
         else:
             response = requests.get("https://ttsvoices.acecentre.net/voices", params=params)
         data = response.json()
@@ -93,7 +100,7 @@ st.pydeck_chart(map)
 
 # Filter Form
 st.write("## Filter Voices")
-engines_list = ["All", "polly", "google", "microsoft", "watson", "elevenlabs", "witai", "mms", "acapela", "other"]
+engines_list = fetch_engines()
 engine = st.selectbox("Select Engine", options=engines_list)
 
 # Collect all unique languages for the dropdown
