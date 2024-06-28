@@ -18,8 +18,8 @@ def get_voices(engine=None, lang_code=None, software=None):
     is_development = os.getenv('DEVELOPMENT') == 'True'
     try:
         if is_development:
-            #response = requests.get("http://127.0.0.1:8000/voices", params=params)
-            response = requests.get("https://ttsvoices.acecentre.net/voices", params=params)
+            response = requests.get("http://127.0.0.1:8000/voices", params=params)
+            #response = requests.get("https://ttsvoices.acecentre.net/voices", params=params)
         else:
             response = requests.get("https://ttsvoices.acecentre.net/voices", params=params)
         data = response.json()
@@ -33,87 +33,89 @@ def get_voices(engine=None, lang_code=None, software=None):
 def aggregate_voices_by_language(data):
     lang_voices_details = {}
     for voice in data:
-        for lang_code in voice['language_codes']:
+        for language in voice['languages']:
+            lang_code = language['language_code']
             if lang_code not in lang_voices_details:
                 lang_voices_details[lang_code] = {'count': 0, 'latitudes': [], 'longitudes': []}
             lang_voices_details[lang_code]['count'] += 1
-            for lat_long in voice['lat_longs']:
-                if lat_long['latitude'] != "0.0" or lat_long['longitude'] != "0.0":  # Check if the location is valid
-                    lang_voices_details[lang_code]['latitudes'].append(float(lat_long['latitude']))
-                    lang_voices_details[lang_code]['longitudes'].append(float(lat_long['longitude']))
-    # Calculate average latitude and longitude for each language
-    for lang_code, details in lang_voices_details.items():
-        if details['latitudes'] and details['longitudes']:
-            avg_lat = sum(details['latitudes']) / len(details['latitudes'])
-            avg_long = sum(details['longitudes']) / len(details['longitudes'])
-        else:
-            avg_lat, avg_long = 0, 0  # Default to 0,0 if no valid locations
-        lang_voices_details[lang_code] = {'count': details['count'], 'latitude': avg_lat, 'longitude': avg_long}
+            if language['latitude'] != "0.0" and language['longitude'] != "0.0":  # Check if the location is valid
+                lang_voices_details[lang_code]['latitudes'].append(float(language['latitude']))
+                lang_voices_details[lang_code]['longitudes'].append(float(language['longitude']))
     return lang_voices_details
 
-# Streamlit app
-st.title("Voice Availability Map")
-
-# Streamlit app adjustments for dataframe creation
+# Get voices from the API
 voices = get_voices()
 
-# Flatten the latitude and longitude data for each voice
-flattened_lat_longs = []
-for voice in voices:  # Assuming `voices` is your API response
-    for lat_long in voice["lat_longs"]:
-        flattened_lat_longs.append({
-            "Language": voice["language_codes"][0],  # Example, adjust as needed
-            "Voices": 1,  # Assuming each entry counts as one voice
-            "Longitude": lat_long["longitude"],
-            "Latitude": lat_long["latitude"],
-            "Engine": voice["engine"],
-            # Add more fields as necessary
-        })
+# Prepare data for map
+map_data = []
+for voice in voices:
+    for language in voice['languages']:
+        if language['latitude'] != "0.0" and language['longitude'] != "0.0":  # Check if the location is valid
+            map_data.append({
+                'Language': language['language'],
+                'Voices': 1,
+                'Latitude': float(language['latitude']),
+                'Longitude': float(language['longitude'])
+            })
 
-# Convert to DataFrame for visualization
-df_lat_longs = pd.DataFrame(flattened_lat_longs)
+# Convert map data to DataFrame
+df = pd.DataFrame(map_data)
 
-lang_voices_details = aggregate_voices_by_language(voices)
-df = pd.DataFrame([(k, v['count'], v['latitude'], v['longitude']) for k, v in lang_voices_details.items()], columns=['Language', 'Voices', 'Latitude', 'Longitude'])
+# Aggregate data by language and coordinates
+aggregated_data = df.groupby(['Language', 'Latitude', 'Longitude']).size().reset_index(name='Voices')
 
-# Interactive Map
-st.write("## Voice Availability by Language")
-view_state = pdk.ViewState(latitude=0, longitude=0, zoom=1)
-max_radius = 20000  # Maximum radius for a circle
-scale_factor = 10000  # Adjust this scale factor as needed
-# Calculate the radius for each language, ensuring it does not exceed max_radius
-df['Radius'] = df['Voices'] * scale_factor
-df['Radius'] = df['Radius'].apply(lambda x: min(x, max_radius))
+# Debugging: Print the DataFrame to ensure it includes all expected voices
+#st.write("### Aggregated Voices Data", aggregated_data)
 
-# Update the PyDeck layer to use the pre-calculated radius
+# Adjust the initial PyDeck layer radius
+scaling_factor = 10000  # Increase this value to make the dots larger
+max_radius = 500000  # Increase this value to allow for larger maximum dot sizes
+
+# Calculate radius based on the count of voices for each language
+aggregated_data['Radius'] = aggregated_data['Voices'].apply(lambda x: min(x * scaling_factor, max_radius))  # Adjust scaling as needed
+
+# Debugging: Print the DataFrame with the calculated radius
+#st.write("### Aggregated Voices Data with Radius", aggregated_data)
+
 layer = pdk.Layer(
     'ScatterplotLayer',
-    data=df,
+    data=aggregated_data,
     get_position='[Longitude, Latitude]',
     get_radius='Radius',  # Use the pre-calculated radius column
     get_fill_color='[200, 30, 0, 80]',
     pickable=True
 )
+
 tool_tip = {"html": "Language: {Language}<br/>Voices: {Voices}", "style": {"color": "white"}}
+view_state = pdk.ViewState(latitude=0, longitude=0, zoom=1)  # Adjust the initial view state as needed
 map = pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip=tool_tip)
 st.pydeck_chart(map)
-
-
 
 # Filter Form
 st.write("## Filter Voices")
 engines_list = ["All", "polly", "google", "microsoft", "watson", "elevenlabs", "witai", "mms", "acapela", "other"]
 engine = st.selectbox("Select Engine", options=engines_list)
-language = st.selectbox("Select Language", options=['All'] + list(lang_voices_details.keys()), key='language')
 
-# Define selected_language_codes based on the selected language
-selected_language_codes = [language] if language != "All" else list(lang_voices_details.keys())
+# Collect all unique languages for the dropdown
+all_languages = set()
+for voice in voices:
+    all_languages.update([lang['language'] for lang in voice['languages']])
+# Convert the set to a sorted list to have a consistent order
+language_options = sorted(list(all_languages))
+# Use these language names as options in a Streamlit selectbox
+selected_language = st.selectbox("Select a language:", ["All"] + language_options)
 
-# Adjust filtering for both engine and language
-filtered_voices = [voice for voice in voices if (voice["engine"] == engine or engine == "All") and any(lang_code in voice["language_codes"] for lang_code in selected_language_codes)]
+# Filter voices based on engine and selected language
+filtered_voices = [voice for voice in voices if (voice["engine"] == engine or engine == "All") and 
+                   any(lang["language"] == selected_language or selected_language == "All" for lang in voice['languages'])]
 
-# Convert filtered_voices to a DataFrame and display
+# Transform 'languages' in each voice dictionary to a string representation before creating the DataFrame
+for voice in filtered_voices:
+    voice['languages'] = ', '.join([lang['language'] for lang in voice['languages']])
+
+# Create the DataFrame from the updated filtered_voices list
 filtered_voices_df = pd.DataFrame(filtered_voices)
-filtered_voices_df = filtered_voices_df.drop(columns=["lat_longs"])  # Remove the lat_longs column
-st.write(f"### {len(filtered_voices)} Voices Found")
+
+# Display the number of voices found and the DataFrame
+st.write(f"### {len(filtered_voices_df)} Voices Found")
 st.dataframe(filtered_voices_df.style.set_properties(**{'width': '800px', 'height': '400px'}))
