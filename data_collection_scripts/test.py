@@ -199,6 +199,8 @@ def locale_to_iso639_info(locale_code, best_guess=False):
         region_name = custom_info['region']
         country_code = get_country_code(country_name)
         geolocatable_string = f"{country_name}, {region_name}"
+        if country_name and country_code != language.alpha_2:
+            full_english_name += f", {country_name}"
     else:
         # Get the country code and region if available
         if len(parts) > 1:
@@ -206,6 +208,8 @@ def locale_to_iso639_info(locale_code, best_guess=False):
                 country = pycountry.countries.get(alpha_2=parts[1])
                 if country:
                     country_code = country.alpha_2
+                    if country_code != language.alpha_2:
+                        full_english_name += f", {country.name}"
 
         if len(parts) > 2:
             # Look up the full name for the region if it exists
@@ -232,7 +236,7 @@ def locale_to_iso639_info(locale_code, best_guess=False):
                 if likely_country:
                     country_code = likely_country
                     country = pycountry.countries.get(alpha_2=likely_country)
-                    if country:
+                    if country and country_code != language.alpha_2:
                         full_english_name = f"{full_english_name}, {country.name}"
                         geolocatable_string = f"{region_name}, {country.name}" if region_code != 'unknown' else country.name
                 else:
@@ -254,6 +258,8 @@ def locale_to_iso639_info(locale_code, best_guess=False):
         if country_name != 'Unknown':
             country_code = get_country_code(country_name)
             geolocatable_string = country_name
+            if country_name:
+                full_english_name += f", {country_name}"
     
     # Avoid appending country names to languages that don't need it
     if country_code == 'unknown' or full_english_name == language.name:
@@ -276,7 +282,7 @@ def locale_to_iso639_info(locale_code, best_guess=False):
 
 # Example use of the function
 language_codes = [
-    'CZC', 'FRF', 'ENE', 'ENI', 'ENS', 'ENZ', 'FRB', 'HRH', 'JPJ', 'PJ', 'MNT',
+    'en-gb-sct', 'en-us', 'eng', 'he-is', 'ENS', 'ENZ', 'FRB', 'HRH', 'JPJ', 'PJ', 'MNT',
     'PLP', 'PTB', 'RUR', 'TAI', 'ac-ac', 'cn', 'cz', 'dk', 'au', 'in', 'gb-sct',
     'gb', 'us', 'ac-qc', 'gr', 'jp', 'abi'
 ]

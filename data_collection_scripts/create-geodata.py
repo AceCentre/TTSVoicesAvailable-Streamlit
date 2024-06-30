@@ -294,6 +294,8 @@ def locale_to_iso639_info(locale_code, best_guess=False):
         region_name = custom_info['region']
         country_code = get_country_code(country_name)
         geolocatable_string = f"{country_name}, {region_name}"
+        if country_name:
+            full_english_name += f", {country_name}"
     else:
         # Get the country code and region if available
         if len(parts) > 1:
@@ -301,6 +303,7 @@ def locale_to_iso639_info(locale_code, best_guess=False):
                 country = pycountry.countries.get(alpha_2=parts[1])
                 if country:
                     country_code = country.alpha_2
+                    full_english_name += f", {country.name}"
 
         if len(parts) > 2:
             # Look up the full name for the region if it exists
@@ -349,6 +352,8 @@ def locale_to_iso639_info(locale_code, best_guess=False):
         if country_name != 'Unknown':
             country_code = get_country_code(country_name)
             geolocatable_string = country_name
+            if country_name:
+                full_english_name += f", {country_name}"
     
     # Avoid appending country names to languages that don't need it
     if country_code == 'unknown' or full_english_name == language.name:
