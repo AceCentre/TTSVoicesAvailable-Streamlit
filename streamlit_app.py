@@ -51,8 +51,8 @@ def aggregate_voices_by_language(data):
     return lang_voices_details
 
 # Determine online/offline status
-online_engines = ["Polly", "Google", "Azure", "Watson", "ElevenLabs", "Wit.AI"]
-offline_engines = ["MMS", "Piper", "UWP", "SAPI", "NSS"]
+online_engines = ["polly", "google", "microsoft", "elevenlabs", "witai"]
+offline_engines = ["mms", "nuance-nuance", "cereproc-cereproc", "anreader-andreader", "acapela-mindexpress","microsoft-sapi","acapela-sapi","rhvoice-sapi"]
 
 # Fetch data and prepare dataframe
 voices_data = get_voices()
@@ -60,7 +60,7 @@ voices_data = get_voices()
 # Adding status to each voice
 for voice in voices_data:
     engine = voice["engine"]
-    if engine in online_engines or '-' in engine:
+    if engine in online_engines:
         voice["status"] = "Online"
     else:
         voice["status"] = "Offline"
@@ -90,6 +90,9 @@ engine_filter = st.sidebar.selectbox("Engine", options=engines_title_case, index
 
 language_search = st.sidebar.text_input("Search Language")
 
+# Debugging: Display unique engines and their counts
+#st.write("Unique engines in data:", df['engine'].value_counts())
+
 # Filter dataframe based on selections
 filters_applied = False
 if gender_filter:
@@ -114,14 +117,30 @@ if filters_applied:
 
 # Calculate statistics
 total_voices = len(df)
-online_voices = len(df[df['status'] == "Online"])
-offline_voices = len(df[df['status'] == "Offline"])
-male_voices = len(df[df['gender'] == "Male"])
-female_voices = len(df[df['gender'] == "Female"])
-unknown_gender_voices = len(df[df['gender'] == "Unknown"])
+if total_voices > 0:
+    online_voices = len(df[df['status'] == "Online"])
+    offline_voices = len(df[df['status'] == "Offline"])
+    male_voices = len(df[df['gender'] == "Male"])
+    female_voices = len(df[df['gender'] == "Female"])
+    unknown_gender_voices = len(df[df['gender'] == "Unknown"])
 
-# Display statistics
-st.markdown(f"There are a **Total {total_voices} Voices Found:**. **Online Voices:** {online_voices} ({online_voices / total_voices:.2%}) **Offline Voices:** {offline_voices} ({offline_voices / total_voices:.2%}) **Male Voices:** {male_voices} ({male_voices / total_voices:.2%} **Female Voices:** {female_voices} ({female_voices / total_voices:.2%}) **Unknown Gender Voices:** {unknown_gender_voices} ({unknown_gender_voices / total_voices:.2%})")
+    # # Display statistics
+    # st.markdown(f"**Total Voices Found:** {total_voices}")
+    # st.markdown(f"**Online Voices:** {online_voices} ({online_voices / total_voices:.2%})")
+    # st.markdown(f"**Offline Voices:** {offline_voices} ({offline_voices / total_voices:.2%})")
+    # st.markdown(f"**Male Voices:** {male_voices} ({male_voices / total_voices:.2%})")
+    # st.markdown(f"**Female Voices:** {female_voices} ({female_voices / total_voices:.2%})")
+    # st.markdown(f"**Unknown Gender Voices:** {unknown_gender_voices} ({unknown_gender_voices / total_voices:.2%})")
+
+    st.markdown(f"There are a **Total {total_voices} Voices Found:**. **Online Voices:** {online_voices} ({online_voices / total_voices:.2%}) **Offline Voices:** {offline_voices} ({offline_voices / total_voices:.2%}) **Male Voices:** {male_voices} ({male_voices / total_voices:.2%} **Female Voices:** {female_voices} ({female_voices / total_voices:.2%}) **Unknown Gender Voices:** {unknown_gender_voices} ({unknown_gender_voices / total_voices:.2%})")
+
+else:
+    st.markdown("**No voices found with the current filter selectio ns.**")
+
+# Debugging: Display first few rows of the dataframe and the engine/status counts
+# st.write("Filtered dataframe:", df.head())
+# st.write("Engine counts:", df['engine'].value_counts())
+# st.write("Status counts:", df['status'].value_counts())
 
 # Display dataframe without certain columns
 columns_to_hide = ['latitude', 'longitude', 'id', 'name']
