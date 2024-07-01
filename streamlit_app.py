@@ -10,7 +10,7 @@ from fuzzywuzzy import process
 def fetch_engines():
     response = requests.get("https://ttsvoices.acecentre.net/engines")
     engines = response.json()
-    # Add "All" and "Other" options
+    # Add "All" option
     engines = ["All"] + engines
     return engines
 
@@ -18,8 +18,8 @@ def fetch_engines():
 def get_voices(engine=None, lang_code=None, software=None):
     params = {}
     params['page_size'] = 0
-    if engine:
-        params['engine'] = engine
+    if engine and engine != "All":
+        params['engine'] = engine.lower()  # Convert back to lowercase for the API call
     if lang_code:
         params['lang_code'] = lang_code
     if software:
@@ -65,8 +65,10 @@ for voice in voices_data:
     else:
         voice["status"] = "Offline"
 
+# Normalize the dataframe
 df = pd.json_normalize(voices_data, 'languages', ['id', 'name', 'gender', 'engine', 'status'])
 
+# Title and description
 st.title("Text to Speech (TTS) Voice Data Explorer")
 description = """
 This page provides an interactive way to explore voice data from various TTS engines. 
@@ -80,6 +82,12 @@ st.sidebar.title("Filters")
 show_map = st.sidebar.checkbox("Show Map", value=False)
 gender_filter = st.sidebar.multiselect("Gender", options=["Male", "Female", "Unknown"], default=["Male", "Female", "Unknown"])
 status_filter = st.sidebar.radio("Status", options=["All", "Online", "Offline"], index=0)
+
+# Fetch engines and convert to title case
+engines = fetch_engines()
+engines_title_case = [engine.title() for engine in engines]
+engine_filter = st.sidebar.selectbox("Engine", options=engines_title_case, index=0)
+
 language_search = st.sidebar.text_input("Search Language")
 
 # Filter dataframe based on selections
@@ -89,6 +97,9 @@ if gender_filter:
     filters_applied = True
 if 'status' in df.columns and status_filter != "All":
     df = df[df['status'] == status_filter]
+    filters_applied = True
+if engine_filter and engine_filter != "All":
+    df = df[df['engine'].str.title() == engine_filter]
     filters_applied = True
 if language_search:
     # Perform fuzzy matching
