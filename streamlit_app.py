@@ -41,20 +41,19 @@ def get_voices(engine=None, lang_code=None, software=None):
 # Function to aggregate voices by language and collect coordinates
 def aggregate_voices_by_language(data):
     lang_voices_details = {}
-    for voice in data:
-        for language in voice['languages']:
-            lang_code = language['language_code']
-            if lang_code not in lang_voices_details:
-                lang_voices_details[lang_code] = {'count': 0, 'latitudes': [], 'longitudes': []}
-            lang_voices_details[lang_code]['count'] += 1
-            if language['latitude'] != "0.0" and language['longitude'] != "0.0":  # Check if the location is valid
-                lang_voices_details[lang_code]['latitudes'].append(float(language['latitude']))
-                lang_voices_details[lang_code]['longitudes'].append(float(language['longitude']))
+    for index, row in data.iterrows():
+        lang_code = row['language_code']
+        if lang_code not in lang_voices_details:
+            lang_voices_details[lang_code] = {'count': 0, 'latitudes': [], 'longitudes': []}
+        lang_voices_details[lang_code]['count'] += 1
+        if row['latitude'] != "0.0" and row['longitude'] != "0.0":  # Check if the location is valid
+            lang_voices_details[lang_code]['latitudes'].append(float(row['latitude']))
+            lang_voices_details[lang_code]['longitudes'].append(float(row['longitude']))
     return lang_voices_details
 
 # Determine online/offline status
 online_engines = ["polly", "google", "microsoft", "elevenlabs", "witai"]
-offline_engines = ["mms", "nuance-nuance", "cereproc-cereproc", "anreader-andreader", "acapela-mindexpress","microsoft-sapi","acapela-sapi","rhvoice-sapi"]
+offline_engines = ["mms", "nuance-nuance", "cereproc-cereproc", "anreader-andreader", "acapela-mindexpress", "microsoft-sapi", "acapela-sapi", "rhvoice-sapi"]
 
 # Fetch data and prepare dataframe
 voices_data = get_voices()
@@ -81,6 +80,20 @@ You can filter the data by gender, status (online/offline), and search for speci
 Use the map to visualize the geographical distribution of the voices. Please note though - these are approximations. Languages can be spoken anywhere in the world. 
 """
 st.markdown(description)
+
+# Toggleable long description
+show_long_text = st.checkbox("Show More Information")
+if show_long_text:
+    long_text = """
+    If the voice is 'online' you can use it with a bridging software on Windows using [AAC Speak Helper](https://docs.acecentre.org.uk/products/v/aac-speak-helper-tool). This will work with Windows AAC software such as [The Grid 3 on Windows](http://thinksmartbox.com), [Communicator](https://us.tobiidynavox.com/products/communicator-5), and [Snap on Windows](https://us.tobiidynavox.com/pages/td-snap). Follow the instructions on the [documentation](https://docs.acecentre.org.uk/products/v/aac-speak-helper-tool) to use this. You will need ['keys'](https://docs.acecentre.org.uk/products/v/aac-speak-helper-tool/getting-keys-for-azure-or-google) (this is a piece of text provided by the provider e.g., Microsoft that allows you to use their software. You generally have to provide credit card details for this step). Our Speak Helper will cache strings of converted audio to allow for offline support if it has spoken that word before but only if it has. (Note: If you are an Ace Centre member of staff please consult Shared Resources for a version with these keys built-in).
+
+    Other engines e.g., [MMS](https://ai.meta.com/blog/multilingual-model-speech-recognition/), allow for offline support. This, too, you can use with our Speak Helper tool. SAPI voices (e.g., [RHVoice](https://rhvoice.org/languages/), [Cereproc](https://www.cereproc.com), [Acapela](https://www.acapela-group.com/demos/), [Nuance](https://www.nuance.com/omni-channel-customer-engagement/voice-and-ivr/text-to-speech/vocalizer.html)) you all will need to [download (and often purchase) Voices](https://nextup.com/ivona/). You will need to visit the respective companies websites or [NextUp](https://nextup.com/) for more information and to hear voices. Note that some software such as [MindExpress](https://www.jabbla.com/en/mindexpress/voices/) have their own pages to download additional voices. We have listed in our list here these specific engines. 
+    
+    Note what is missing from our list: 
+    - [eSpeak-NG](https://github.com/espeak-ng/espeak-ng/) allows you to install voices on Windows and iOS. 
+    - iOS-specific voices and apps. Watch this space
+    """
+    st.markdown(long_text)
 
 # Add UI elements
 st.sidebar.title("Filters")
@@ -139,7 +152,7 @@ if total_voices > 0:
         st.markdown(f"**Female Voices:** {female_voices} ({female_voices / total_voices:.2%})")
         st.markdown(f"**Unknown Gender Voices:** {unknown_gender_voices} ({unknown_gender_voices / total_voices:.2%})")
 
-    st.markdown(f"There are a **Total {total_voices} Voices Found:**. **Online Voices:** {online_voices} ({online_voices / total_voices:.2%}) **Offline Voices:** {offline_voices} ({offline_voices / total_voices:.2%}) **Male Voices:** {male_voices} ({male_voices / total_voices:.2%} **Female Voices:** {female_voices} ({female_voices / total_voices:.2%}) **Unknown Gender Voices:** {unknown_gender_voices} ({unknown_gender_voices / total_voices:.2%})")
+    st.markdown(f"There are a **Total {total_voices} Voices Found:**. **Online Voices:** {online_voices} ({online_voices / total_voices:.2%}) **Offline Voices:** {offline_voices} ({offline_voices / total_voices:.2%}) **Male Voices:** {male_voices} ({male_voices / total_voices:.2%}) **Female Voices:** {female_voices} ({female_voices / total_voices:.2%}) **Unknown Gender Voices:** {unknown_gender_voices} ({unknown_gender_voices / total_voices:.2%})")
 
 else:
     st.markdown("**No voices found with the current filter selections.**")
@@ -157,7 +170,7 @@ st.dataframe(df_display)
 
 # Show map if checkbox is selected
 if show_map:
-    lang_voices_details = aggregate_voices_by_language(voices_data)
+    lang_voices_details = aggregate_voices_by_language(df)
     # Create map layer for each language
     layers = []
     for lang, details in lang_voices_details.items():
