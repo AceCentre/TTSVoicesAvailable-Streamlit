@@ -29,7 +29,8 @@ def get_voices(engine=None, lang_code=None, software=None):
     is_development = os.getenv('DEVELOPMENT') == 'True'
     try:
         if is_development:
-            response = requests.get("http://127.0.0.1:8080/voices", params=params)
+            #response = requests.get("http://127.0.0.1:8080/voices", params=params)
+            response = requests.get("https://ttsvoices.acecentre.net/voices", params=params)
         else:
             response = requests.get("https://ttsvoices.acecentre.net/voices", params=params)
         data = response.json()
@@ -69,8 +70,12 @@ for voice in voices_data:
 # Normalize the dataframe
 df = pd.json_normalize(voices_data, 'languages', ['id', 'name', 'gender', 'engine', 'status'])
 
-# Map gender 'N' to 'Unknown'
-df['gender'] = df['gender'].replace('N', 'Unknown')
+# Map gender values to standardized values
+df['gender'] = df['gender'].str.lower().replace({
+    'm': 'Male', 'male': 'Male', 'masc': 'Male', 'masculine': 'Male',
+    'f': 'Female', 'female': 'Female', 'fem': 'Female', 'feminine': 'Female'
+})
+df['gender'] = df['gender'].apply(lambda x: x if x in ['Male', 'Female'] else 'Unknown')
 
 # Title and description
 st.title("Text to Speech (TTS) Voice Data Explorer")
