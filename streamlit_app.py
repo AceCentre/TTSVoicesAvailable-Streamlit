@@ -70,6 +70,9 @@ for voice in voices_data:
 # Normalize the dataframe
 df = pd.json_normalize(voices_data, 'languages', ['id', 'name', 'gender', 'engine', 'status'])
 
+# Map gender 'N' to 'Unknown'
+df['gender'] = df['gender'].replace('N', 'Unknown')
+
 # Title and description
 st.title("Text to Speech (TTS) Voice Data Explorer")
 description = """
