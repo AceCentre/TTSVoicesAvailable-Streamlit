@@ -164,7 +164,7 @@ if debug:
     st.write("Status counts:", df['status'].value_counts())
 
 # Display dataframe without certain columns
-columns_to_hide = ['latitude', 'longitude', 'id', 'name']
+columns_to_hide = ['latitude', 'longitude', 'name']
 df_display = df.drop(columns=columns_to_hide)
 st.dataframe(df_display)
 
