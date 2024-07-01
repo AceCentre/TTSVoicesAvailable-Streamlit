@@ -4,6 +4,7 @@ import pydeck as pdk
 import os
 import requests
 import matplotlib.pyplot as plt
+from fuzzywuzzy import process
 
 # Function to fetch engines
 def fetch_engines():
@@ -74,7 +75,6 @@ Use the map to visualize the geographical distribution of the voices. Please not
 """
 st.markdown(description)
 
-
 # Add UI elements
 st.sidebar.title("Filters")
 show_map = st.sidebar.checkbox("Show Map", value=False)
@@ -91,13 +91,15 @@ if 'status' in df.columns and status_filter != "All":
     df = df[df['status'] == status_filter]
     filters_applied = True
 if language_search:
-    df = df[df['language'].str.contains(language_search, case=False, na=False)]
+    # Perform fuzzy matching
+    all_languages = df['language'].unique()
+    matches = process.extractBests(language_search, all_languages, score_cutoff=70)
+    matched_languages = [match[0] for match in matches]
+    df = df[df['language'].isin(matched_languages)]
     filters_applied = True
-
 
 if filters_applied:
     st.markdown("<style>.markdown-text-container {display: none;}</style>", unsafe_allow_html=True)
-
 
 # Calculate statistics
 total_voices = len(df)
@@ -108,8 +110,8 @@ female_voices = len(df[df['gender'] == "Female"])
 unknown_gender_voices = len(df[df['gender'] == "Unknown"])
 
 # Display statistics
-
 st.markdown(f"There are a **Total {total_voices} Voices Found:**. **Online Voices:** {online_voices} ({online_voices / total_voices:.2%}) **Offline Voices:** {offline_voices} ({offline_voices / total_voices:.2%}) **Male Voices:** {male_voices} ({male_voices / total_voices:.2%} **Female Voices:** {female_voices} ({female_voices / total_voices:.2%}) **Unknown Gender Voices:** {unknown_gender_voices} ({unknown_gender_voices / total_voices:.2%})")
+
 # Display dataframe without certain columns
 columns_to_hide = ['latitude', 'longitude', 'id', 'name']
 df_display = df.drop(columns=columns_to_hide)

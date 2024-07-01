@@ -1,3 +1,7 @@
-fuzzysearch
-geopy
+fuzzywuzzy
 streamlit
+pandas
+pydeck
+requests
+matplotlib
+python-Levenshtein
