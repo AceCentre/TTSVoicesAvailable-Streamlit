@@ -54,7 +54,7 @@ def aggregate_voices_by_language(data):
 
 # Determine online/offline status
 online_engines = ["polly", "google", "microsoft", "elevenlabs", "witai"]
-offline_engines = ["mms", "nuance-nuance", "cereproc-cereproc", "anreader-andreader", "acapela-mindexpress", "microsoft-sapi", "acapela-sapi", "rhvoice-sapi"]
+offline_engines = ["sherpaonnx", "nuance-nuance", "cereproc-cereproc", "anreader-andreader", "acapela-mindexpress", "microsoft-sapi", "acapela-sapi", "rhvoice-sapi"]
 
 # Fetch data and prepare dataframe
 voices_data = get_voices()
@@ -92,7 +92,7 @@ if show_long_text:
     long_text = """
     If the voice is 'online' you can use it with a bridging software on Windows using [AAC Speak Helper](https://docs.acecentre.org.uk/products/v/aac-speak-helper-tool). This will work with Windows AAC software such as [The Grid 3 on Windows](http://thinksmartbox.com), [Communicator](https://us.tobiidynavox.com/products/communicator-5), and [Snap on Windows](https://us.tobiidynavox.com/pages/td-snap). Follow the instructions on the [documentation](https://docs.acecentre.org.uk/products/v/aac-speak-helper-tool) to use this. You will need ['keys'](https://docs.acecentre.org.uk/products/v/aac-speak-helper-tool/getting-keys-for-azure-or-google) (this is a piece of text provided by the provider e.g., Microsoft that allows you to use their software. You generally have to provide credit card details for this step). Our Speak Helper will cache strings of converted audio to allow for offline support if it has spoken that word before but only if it has. (Note: If you are an Ace Centre member of staff please consult Shared Resources for a version with these keys built-in).
 
-    Other engines e.g., [MMS](https://ai.meta.com/blog/multilingual-model-speech-recognition/), allow for offline support. This, too, you can use with our Speak Helper tool. SAPI voices (e.g., [RHVoice](https://rhvoice.org/languages/), [Cereproc](https://www.cereproc.com), [Acapela](https://www.acapela-group.com/demos/), [Nuance](https://www.nuance.com/omni-channel-customer-engagement/voice-and-ivr/text-to-speech/vocalizer.html)) you all will need to [download (and often purchase) Voices](https://nextup.com/ivona/). You will need to visit the respective companies websites or [NextUp](https://nextup.com/) for more information and to hear voices. Note that some software such as [MindExpress](https://www.jabbla.com/en/mindexpress/voices/) have their own pages to download additional voices. We have listed in our list here these specific engines. 
+    Other engines e.g., [MMS in SherpaOnnx](https://ai.meta.com/blog/multilingual-model-speech-recognition/), allow for offline support. This, too, you can use with our Speak Helper tool. SAPI voices (e.g., [RHVoice](https://rhvoice.org/languages/), [Cereproc](https://www.cereproc.com), [Acapela](https://www.acapela-group.com/demos/), [Nuance](https://www.nuance.com/omni-channel-customer-engagement/voice-and-ivr/text-to-speech/vocalizer.html)) you all will need to [download (and often purchase) Voices](https://nextup.com/ivona/). You will need to visit the respective companies websites or [NextUp](https://nextup.com/) for more information and to hear voices. Note that some software such as [MindExpress](https://www.jabbla.com/en/mindexpress/voices/) have their own pages to download additional voices. We have listed in our list here these specific engines. 
     
     Note what is missing from our list: 
     - [eSpeak-NG](https://github.com/espeak-ng/espeak-ng/) allows you to install voices on Windows and iOS. 
