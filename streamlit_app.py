@@ -53,8 +53,8 @@ def aggregate_voices_by_language(data):
     return lang_voices_details
 
 # Determine online/offline status
-online_engines = ["polly", "google", "microsoft", "elevenlabs", "witai"]
-offline_engines = ["sherpaonnx", "nuance-nuance", "cereproc-cereproc", "anreader-andreader", "acapela-mindexpress", "microsoft-sapi", "acapela-sapi", "rhvoice-sapi"]
+online_engines = ["polly", "google", "microsoft", "elevenlabs", "witai", "playht"]
+offline_engines = ["sherpaonnx", "nuance-nuance", "cereproc-cereproc", "anreader-andreader", "acapela-mindexpress", "microsoft-sapi", "acapela-sapi", "rhvoice-sapi",  "espeak", "avsynth"]
 
 # Fetch data and prepare dataframe
 voices_data = get_voices()
