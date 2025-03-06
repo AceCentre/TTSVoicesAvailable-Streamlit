@@ -12,8 +12,13 @@ debug = False
 def fetch_engines():
     response = requests.get("https://ttsvoices.acecentre.net/engines")
     engines = response.json()
-    # Add "All" option
-    engines = ["All"] + engines
+    # Add filter options with exact case matching
+    engines = [
+        "All",
+        "All - Except MMS",  # Match the case that Streamlit is showing
+        "All - Except eSpeak",
+        "All - Except MMS & eSpeak"
+    ] + engines
     return engines
 
 # Function to get voices from API
@@ -52,23 +57,18 @@ def aggregate_voices_by_language(data):
             lang_voices_details[lang_code]['longitudes'].append(float(row['longitude']))
     return lang_voices_details
 
-# Determine online/offline status
-online_engines = ["polly", "google", "microsoft", "elevenlabs", "witai", "playht"]
-offline_engines = ["sherpaonnx", "nuance-nuance", "cereproc-cereproc", "anreader-andreader", "acapela-mindexpress", "microsoft-sapi", "acapela-sapi", "rhvoice-sapi",  "espeak", "avsynth"]
-
 # Fetch data and prepare dataframe
 voices_data = get_voices()
+# print("\n=== Initial Data Load ===")
+# print(f"Raw data length: {len(voices_data)}")
 
-# Adding status to each voice
-for voice in voices_data:
-    engine = voice["engine"]
-    if engine in online_engines:
-        voice["status"] = "Online"
-    else:
-        voice["status"] = "Offline"
+# Normalize the dataframe and set status based on is_offline
+df = pd.json_normalize(voices_data, 'languages', ['id', 'name', 'gender', 'engine'])
+df['status'] = pd.json_normalize(voices_data, 'languages', ['is_offline'])['is_offline'].apply(lambda x: 'Offline' if x else 'Online')
 
-# Normalize the dataframe
-df = pd.json_normalize(voices_data, 'languages', ['id', 'name', 'gender', 'engine', 'status'])
+# print(f"DataFrame length after normalize: {len(df)}")
+# print("\nInitial engine distribution:")
+# print(df['engine'].value_counts())
 
 # Map gender values to standardized values
 df['gender'] = df['gender'].str.lower().replace({
@@ -125,15 +125,49 @@ if gender_filter:
 if 'status' in df.columns and status_filter != "All":
     df = df[df['status'] == status_filter]
     filters_applied = True
-if engine_filter and engine_filter != "All":
-    df = df[df['engine'].str.title() == engine_filter]
+if engine_filter and engine_filter.lower() != "all":  # Make initial check case-insensitive
+    # print("\n=== Engine Filter Debug ===")
+    # print(f"Before filtering - total voices: {len(df)}")
+    # print(f"Current engine filter: {engine_filter}")
+    
+    if engine_filter.lower() == "all - except mms":  # Make case-insensitive
+        # Debug the filter components separately
+        mms_ids = df['id'].str.startswith('mms_', na=False)
+        sherpa_engine = df['engine'] == 'sherpaonnx'
+        
+        # print(f"\nVoices with mms_ IDs: {mms_ids.sum()}")
+        # print(f"Voices with sherpaonnx engine: {sherpa_engine.sum()}")
+        
+        # Apply filter
+        filter_mask = ~(mms_ids | sherpa_engine)
+        df_filtered = df[filter_mask]
+        
+        # print(f"\nVoices remaining after filter: {len(df_filtered)}")
+        # print("Engines in filtered data:")
+        # print(df_filtered['engine'].value_counts())
+        
+        # Assign filtered data back to df
+        df = df_filtered
+        
+    elif engine_filter.lower() == "all - except espeak":  # Make case-insensitive
+        df = df[~df['engine'].str.contains('espeak', case=False)]
+    elif engine_filter.lower() == "all - except mms & espeak":  # Make case-insensitive
+        df = df[~((df['id'].str.startswith('mms_', na=False)) | 
+                 (df['engine'] == 'sherpaonnx') | 
+                 df['engine'].str.contains('espeak', case=False))]
+    else:
+        df = df[df['engine'].str.title() == engine_filter]
     filters_applied = True
 if language_search:
-    # Perform fuzzy matching
-    all_languages = df['language'].unique()
-    matches = process.extractBests(language_search, all_languages, score_cutoff=70)
-    matched_languages = [match[0] for match in matches]
-    df = df[df['language'].isin(matched_languages)]
+    # Convert search term to lowercase
+    search_term = language_search.lower()
+    # Search in language name, language code, and voice name
+    mask = (
+        df['language'].str.lower().str.contains(search_term, na=False) | 
+        df['language_code'].str.lower().str.contains(search_term, na=False) |
+        df['name'].str.lower().str.contains(search_term, na=False)  # Add search in name field
+    )
+    df = df[mask]
     filters_applied = True
 
 if filters_applied:
@@ -208,3 +242,20 @@ if show_map:
         layers=layers,
         tooltip={"text": "{count} voices at this location"}
     ))
+
+# After loading the data
+if debug:
+    st.write("Sample voice data:", df[['name', 'language', 'language_code']].head(10))
+
+if debug:
+    st.write("Sample data:", df[['engine', 'id']].head(10))
+
+# Move the final debug to right after filtering
+# if debug and len(df) > 0:
+    # print("\n=== Final Data Summary ===")
+    # print(f"Total voices in final dataset: {len(df)}")
+    # print("\nEngine distribution:")
+    # print(df['engine'].value_counts())
+    # if len(df) > 0:
+    #     print("\nFirst few rows of final dataset:")
+    #     print(df[['engine', 'id', 'name']].head())
