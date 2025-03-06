@@ -95,7 +95,6 @@ if show_long_text:
     Other engines e.g., [MMS in SherpaOnnx](https://ai.meta.com/blog/multilingual-model-speech-recognition/), allow for offline support. This, too, you can use with our Speak Helper tool. SAPI voices (e.g., [RHVoice](https://rhvoice.org/languages/), [Cereproc](https://www.cereproc.com), [Acapela](https://www.acapela-group.com/demos/), [Nuance](https://www.nuance.com/omni-channel-customer-engagement/voice-and-ivr/text-to-speech/vocalizer.html)) you all will need to [download (and often purchase) Voices](https://nextup.com/ivona/). You will need to visit the respective companies websites or [NextUp](https://nextup.com/) for more information and to hear voices. Note that some software such as [MindExpress](https://www.jabbla.com/en/mindexpress/voices/) have their own pages to download additional voices. We have listed in our list here these specific engines. 
     
     Note what is missing from our list: 
-    - [eSpeak-NG](https://github.com/espeak-ng/espeak-ng/) allows you to install voices on Windows and iOS. 
     - iOS-specific voices and apps. Watch this space
     """
     st.markdown(long_text)
