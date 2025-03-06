@@ -5,6 +5,9 @@ import os
 import requests
 import matplotlib.pyplot as plt
 from fuzzywuzzy import process
+import csv
+import plotly.express as px
+import plotly.graph_objects as go
 
 debug = False
 
@@ -258,3 +261,189 @@ if debug:
     # if len(df) > 0:
     #     print("\nFirst few rows of final dataset:")
     #     print(df[['engine', 'id', 'name']].head())
+
+# Add this function to load the language data
+def load_language_data():
+    try:
+        # Load the CSV file
+        language_data = pd.read_csv('alltts.csv')
+        # Clean up and prepare the data
+        language_data = language_data.rename(columns={
+            'ISO 693-3': 'iso_code',
+            'Language Name': 'language_name',
+            'Population Text': 'population_text',
+            'Population Estimate': 'population',
+            'ethnologuelink': 'ethnologue_link'
+        })
+        
+        # Extract the actual URL from the HTML link
+        def extract_url(html_link):
+            if pd.isna(html_link):
+                return ""
+            import re
+            url_match = re.search(r'href="([^"]+)"', html_link)
+            if url_match:
+                return url_match.group(1)
+            return ""
+        
+        # Extract the link text
+        def extract_link_text(html_link):
+            if pd.isna(html_link):
+                return ""
+            import re
+            text_match = re.search(r'>([^<]+)<', html_link)
+            if text_match:
+                return text_match.group(1)
+            return "Ethnologue"
+        
+        # Create clean URL and text columns
+        language_data['ethnologue_url'] = language_data['ethnologue_link'].apply(extract_url)
+        language_data['ethnologue_text'] = language_data['ethnologue_link'].apply(extract_link_text)
+        
+        # Convert population to numeric, handling non-numeric values
+        language_data['population'] = pd.to_numeric(language_data['population'], errors='coerce')
+        return language_data
+    except Exception as e:
+        st.error(f"Error loading language data: {str(e)}")
+        # Print more details for debugging
+        import traceback
+        st.error(traceback.format_exc())
+        return pd.DataFrame()
+
+# Add this after the dataframe display
+st.header("Language Coverage Analysis")
+show_language_coverage = st.checkbox("Show Language Coverage Chart", value=False)
+
+if show_language_coverage:
+    # Add filter checkboxes
+    col1, col2 = st.columns(2)
+    with col1:
+        exclude_mms = st.checkbox("Exclude MMS voices", value=False)
+    with col2:
+        exclude_espeak = st.checkbox("Exclude eSpeak voices", value=False)
+    
+    # Load language data
+    language_data = load_language_data()
+    
+    if not language_data.empty:
+        # Create a progress indicator
+        progress_bar = st.progress(0)
+        st.info("Analyzing language coverage... This may take a moment.")
+        
+        # Create a filtered dataframe based on checkbox selections
+        filtered_df = df.copy()
+        
+        # Debug information
+        st.write(f"Total voices before filtering: {len(filtered_df)}")
+        
+        # Apply filters if selected
+        if exclude_mms:
+            filtered_df = filtered_df[~((filtered_df['id'].str.startswith('mms_', na=False)) | 
+                                      (filtered_df['engine'] == 'sherpaonnx'))]
+            st.write(f"Total voices after excluding MMS: {len(filtered_df)}")
+        
+        if exclude_espeak:
+            filtered_df = filtered_df[~filtered_df['engine'].str.contains('espeak', case=False)]
+            st.write(f"Total voices after excluding eSpeak: {len(filtered_df)}")
+        
+        # Get unique languages from voice data
+        voice_languages = filtered_df['language'].dropna().unique()
+        voice_language_codes = filtered_df['language_code'].dropna().unique()
+        
+        st.write(f"Number of unique languages in voice data: {len(voice_languages)}")
+        st.write(f"Number of unique language codes in voice data: {len(voice_language_codes)}")
+        
+        # Count voices by language
+        language_voice_counts = filtered_df.groupby('language').agg({
+            'id': 'count',
+            'status': lambda x: (x == 'Online').sum()
+        }).rename(columns={
+            'id': 'total_voices',
+            'status': 'online_voices'
+        })
+        
+        # Count MMS and eSpeak voices by language
+        mms_counts = df[(df['id'].str.startswith('mms_', na=False)) | 
+                        (df['engine'] == 'sherpaonnx')].groupby('language').size()
+        espeak_counts = df[df['engine'].str.contains('espeak', case=False)].groupby('language').size()
+        
+        language_voice_counts['mms_voices'] = mms_counts.reindex(language_voice_counts.index, fill_value=0)
+        language_voice_counts['espeak_voices'] = espeak_counts.reindex(language_voice_counts.index, fill_value=0)
+        
+        # Create a summary dataframe for visualization
+        summary_data = pd.DataFrame({
+            'Category': ['Languages in the World', 'Languages with TTS', 
+                        'Languages with Online TTS', 'Languages with Offline TTS',
+                        'Languages with Quality TTS (non-MMS, non-eSpeak)'],
+            'Count': [
+                len(language_data),
+                len(language_voice_counts),
+                (language_voice_counts['online_voices'] > 0).sum(),
+                # Count languages with offline voices - fixed the error here
+                filtered_df[filtered_df['status'] == 'Offline']['language'].nunique(),
+                # Count languages with quality voices (non-MMS, non-eSpeak)
+                ((language_voice_counts['total_voices'] > 0) & 
+                 (language_voice_counts['mms_voices'] == 0) & 
+                 (language_voice_counts['espeak_voices'] == 0)).sum()
+            ]
+        })
+        
+        # Calculate percentages
+        summary_data['Percentage'] = summary_data['Count'] / summary_data['Count'][0]
+        
+        # Display summary metrics
+        st.subheader("TTS Language Coverage Summary")
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("Languages in the World", summary_data['Count'][0])
+        col2.metric("Languages with TTS", 
+                   summary_data['Count'][1], 
+                   f"{summary_data['Percentage'][1]:.1%}")
+        col3.metric("Languages with Online TTS", 
+                   summary_data['Count'][2], 
+                   f"{summary_data['Percentage'][2]:.1%}")
+        col4.metric("Languages with Offline TTS", 
+                   summary_data['Count'][3], 
+                   f"{summary_data['Percentage'][3]:.1%}")
+        col5.metric("Languages with Quality TTS", 
+                   summary_data['Count'][4], 
+                   f"{summary_data['Percentage'][4]:.1%}")
+        
+        # Create a bar chart for the summary
+        fig = px.bar(
+            summary_data[1:],  # Skip the first row (total languages)
+            x='Category',
+            y='Count',
+            color='Category',
+            color_discrete_map={
+                'Languages with TTS': 'orange',
+                'Languages with Online TTS': 'lightgreen',
+                'Languages with Offline TTS': 'yellow',
+                'Languages with Quality TTS': 'darkgreen'
+            },
+            title='TTS Language Coverage',
+            text='Count'
+        )
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig)
+        
+        # Create a list of languages without TTS
+        languages_with_tts = set(language_voice_counts.index)
+        languages_without_tts = language_data[~language_data['language_name'].isin(languages_with_tts)]
+        
+        # Show top languages without TTS
+        st.subheader("Languages Without TTS")
+        st.write(f"Top 50 languages by population without TTS support (out of {len(languages_without_tts)}):")
+        st.dataframe(
+            languages_without_tts.sort_values('population', ascending=False)[
+                ['language_name', 'iso_code', 'population', 'ethnologue_url']
+            ].head(50),
+            column_config={
+                "ethnologue_url": st.column_config.LinkColumn("Ethnologue Link"),
+                "population": st.column_config.NumberColumn(format="%d")
+            }
+        )
+        
+        # Complete progress
+        progress_bar.progress(100)
+    else:
+        st.error("Could not load language data. Please check if the CSV file exists.")
